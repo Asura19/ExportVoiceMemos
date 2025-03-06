@@ -40,19 +40,27 @@ struct ContentView: View {
                 Text("未找到语音备忘录")
             } else {
                 VStack {
-                    List(voiceMemos, selection: $selectedMemos) { memo in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(memo.title)
-                                .font(.headline)
-                            Text(memo.originalPath.components(separatedBy: "/").last ?? "")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(formatDate(memo.date))
-                                .font(.caption2)
-                                .foregroundColor(.gray)
+                    List(selection: $selectedMemos) {
+                        ForEach(voiceMemos) { memo in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(memo.title)
+                                        .font(.headline)
+                                    Text(memo.originalPath.components(separatedBy: "/").last ?? "")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text(formatDate(memo.date))
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(.vertical, 4)
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .tag(memo.id)
                         }
-                        .padding(.vertical, 4)
                     }
+                    .listStyle(.inset)
                 }
                 .toolbar {
                     ToolbarItem(placement: .automatic) {
@@ -64,25 +72,34 @@ struct ContentView: View {
                             Label("导出选中项", systemImage: "square.and.arrow.up")
                         }
                         .disabled(selectedMemos.isEmpty)
+                        .keyboardShortcut("e", modifiers: [.command])
                     }
                     
                     ToolbarItem(placement: .automatic) {
-                        Button(action: {
-                            if selectedMemos.count == voiceMemos.count {
-                                selectedMemos.removeAll()
-                            } else {
-                                selectedMemos = Set(voiceMemos.map { $0.id })
+                        Button(
+                            action: {
+                                if selectedMemos.count == voiceMemos.count {
+                                    selectedMemos.removeAll()
+                                } else {
+                                    selectedMemos = Set(voiceMemos.map { $0.id })
+                                }
+                            },
+                            label:  {
+                                Text(selectedMemos.count == voiceMemos.count ? "取消全选" : "全选")
                             }
-                        }) {
-                            Text(selectedMemos.count == voiceMemos.count ? "取消全选" : "全选")
-                        }
+                        )
+                        .keyboardShortcut("a", modifiers: [.command])
                     }
                 }
             }
         }
         .navigationTitle("语音备忘录")
+        .frame(minWidth: 600, minHeight: 400)
         .task {
             await loadVoiceMemos()
+        }
+        .onCommand(#selector(NSResponder.selectAll(_:))) {
+            selectedMemos = Set(voiceMemos.map { $0.id })
         }
     }
     
