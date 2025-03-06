@@ -13,5 +13,7 @@ struct ExportVoiceMemosApp: App {
         WindowGroup {
             ContentView()
         }
+        .windowStyle(.titleBar)
+        .windowToolbarStyle(.unified)
     }
 }

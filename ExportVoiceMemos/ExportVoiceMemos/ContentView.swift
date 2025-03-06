@@ -23,10 +23,20 @@ struct ContentView: View {
     @State private var isExporting = false
     @State private var exportingProgress: Double = 0
     @State private var showExportSuccess = false
+    @State private var needsFullDiskAccess = false
     
     var body: some View {
         Group {
-            if isLoading {
+            if needsFullDiskAccess {
+                PermissionGuideView(onRetryAccess: {
+                    Task {
+                        if await checkFullDiskAccess() {
+                            needsFullDiskAccess = false
+                            await loadVoiceMemos()
+                        }
+                    }
+                })
+            } else if isLoading {
                 ProgressView("加载中...")
             } else if let error = errorMessage {
                 VStack {
@@ -97,7 +107,12 @@ struct ContentView: View {
         .navigationTitle("语音备忘录")
         .frame(minWidth: 600, minHeight: 400)
         .task {
-            await loadVoiceMemos()
+            if await checkFullDiskAccess() {
+                await loadVoiceMemos()
+            } else {
+                needsFullDiskAccess = true
+                isLoading = false
+            }
         }
         .onCommand(#selector(NSResponder.selectAll(_:))) {
             selectedMemos = Set(voiceMemos.map { $0.id })
@@ -256,6 +271,21 @@ struct ContentView: View {
         }
         
         return fileURL
+    }
+    
+    private func checkFullDiskAccess() async -> Bool {
+        // 尝试读取一个受保护的位置来检查权限
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser
+        let testPath = homeDir.appendingPathComponent("Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings")
+        
+        do {
+            // 尝试列出目录内容
+            let _ = try FileManager.default.contentsOfDirectory(atPath: testPath.path)
+            return true
+        } catch {
+            print("无完全磁盘访问权限: \(error)")
+            return false
+        }
     }
 }
 
