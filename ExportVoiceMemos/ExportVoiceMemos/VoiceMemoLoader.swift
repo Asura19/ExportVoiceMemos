@@ -104,9 +104,14 @@ class VoiceMemoLoader {
                         }
                         
                         // 从ZPATH获取文件路径
-                        guard let path = row["ZPATH"] as? String else {
+                        guard let relativePath = row["ZPATH"] as? String else {
                             continue
                         }
+                        
+                        // 构建完整路径
+                        let homeDir = FileManager.default.homeDirectoryForCurrentUser
+                        let baseDir = homeDir.appendingPathComponent("Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings")
+                        let fullPath = baseDir.appendingPathComponent(relativePath).path
                         
                         // 从ZCUSTOMLABEL获取日期
                         let date: Date
@@ -118,7 +123,7 @@ class VoiceMemoLoader {
                         
                         memos.append(VoiceMemo(
                             title: title,
-                            originalPath: path,
+                            originalPath: fullPath,
                             date: date
                         ))
                     }
