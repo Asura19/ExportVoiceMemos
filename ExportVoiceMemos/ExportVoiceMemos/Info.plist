@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>需要访问文档文件夹以读取语音备忘录</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>需要访问桌面文件夹以导出语音备忘录</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>需要访问下载文件夹以导出语音备忘录</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>需要访问系统事件以读取语音备忘录</string>
+    <key>NSFileProviderDomainUsageDescription</key>
+    <string>需要访问文件系统以读取语音备忘录数据库</string>
+    <key>NSSystemAdministrationUsageDescription</key>
+    <string>需要访问系统文件以读取语音备忘录</string>
+</dict>
+</plist> 
