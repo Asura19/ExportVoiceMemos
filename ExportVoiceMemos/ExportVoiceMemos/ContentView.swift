@@ -166,12 +166,19 @@ struct ContentView: View {
             var successCount = 0
             
             for (index, memo) in memos.enumerated() {
-                // 从路径中提取文件名
+                // 从路径中提取文件名和扩展名
                 let fileName = memo.originalPath.components(separatedBy: "/").last ?? "未命名录音.m4a"
+                let fileExtension = (fileName as NSString).pathExtension
+                let fileNameWithoutExtension = (fileName as NSString).deletingPathExtension
                 
-                // 构建源文件路径 - 确保使用完整路径
+                // 构建源文件路径
                 let sourceURL = URL(fileURLWithPath: memo.originalPath)
-                let destinationURL = directory.appendingPathComponent("\(memo.title)")
+                
+                // 创建目标文件名（使用原标题）
+                let baseName = memo.title
+                
+                // 生成不会冲突的目标文件URL
+                let destinationURL = uniqueFileURL(for: baseName, withExtension: fileExtension, in: directory)
                 
                 print("尝试复制文件：\(sourceURL.path) 到 \(destinationURL.path)")
                 
@@ -220,6 +227,35 @@ struct ContentView: View {
                 errorMessage = "导出过程中出错: \(error.localizedDescription)"
             }
         }
+    }
+    
+    // 辅助函数：为文件名生成不会冲突的URL
+    private func uniqueFileURL(for baseName: String, withExtension ext: String, in directory: URL) -> URL {
+        let fileManager = FileManager.default
+        var uniqueName = baseName
+        var index = 1
+        var fileURL = directory.appendingPathComponent(baseName)
+        
+        // 如果有扩展名，添加上
+        if !ext.isEmpty {
+            fileURL = fileURL.appendingPathExtension(ext)
+        }
+        
+        // 检查文件是否存在，如果存在则添加数字后缀
+        while fileManager.fileExists(atPath: fileURL.path) {
+            // 创建新的文件名（带数字后缀）
+            uniqueName = "\(baseName) \(index)"
+            fileURL = directory.appendingPathComponent(uniqueName)
+            
+            // 重新添加扩展名
+            if !ext.isEmpty {
+                fileURL = fileURL.appendingPathExtension(ext)
+            }
+            
+            index += 1
+        }
+        
+        return fileURL
     }
 }
 
