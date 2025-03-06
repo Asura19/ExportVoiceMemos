@@ -72,53 +72,64 @@ class VoiceMemoLoader {
             
             print("数据库中的表: \(tables)")
             
-            // 遍历所有表，查找可能包含语音备忘录的表
-            for tableName in tables {
-                if tableName.uppercased().contains("RECORDING") || 
-                   tableName.uppercased().contains("MEMO") {
+            // 首先尝试直接使用ZCLOUDRECORDING表
+            if tables.contains("ZCLOUDRECORDING") {
+                // 获取表的列信息以确认结构
+                let columns = try db.columns(in: "ZCLOUDRECORDING")
+                let columnNames = columns.map { $0.name }
+                print("ZCLOUDRECORDING表的列: \(columnNames)")
+                
+                // 检查是否包含我们需要的列
+                if columnNames.contains("ZCUSTOMLABEL") && 
+                   columnNames.contains("ZENCRYPTEDTITLE") && 
+                   columnNames.contains("ZPATH") {
                     
-                    // 获取表的列信息
-                    let columns = try db.columns(in: tableName)
-                    print("表 \(tableName) 的列: \(columns.map { $0.name })")
+                    // 使用SQL查询直接获取数据，根据ZCUSTOMLABEL时间戳倒序排列
+                    let rows = try Row.fetchAll(db, sql: """
+                        SELECT ZENCRYPTEDTITLE, ZPATH, ZCUSTOMLABEL, ZCUSTOMLABELFORSORTING 
+                        FROM ZCLOUDRECORDING 
+                        ORDER BY ZCUSTOMLABEL DESC
+                        """)
                     
-                    // 构建通用查询
-                    var titleColumn: String?
-                    var pathColumn: String?
+                    print("查询到\(rows.count)条记录")
                     
-                    // 查找可能的标题和路径列
-                    for column in columns {
-                        let columnName = column.name.uppercased()
-                        if columnName.contains("TITLE") || columnName.contains("NAME") {
-                            titleColumn = column.name
-                        } else if columnName.contains("PATH") || columnName.contains("FILE") {
-                            pathColumn = column.name
+                    var memos: [VoiceMemo] = []
+                    for row in rows {
+                        // 标题优先使用ZCUSTOMLABELFORSORTING，如果不存在则使用ZENCRYPTEDTITLE
+                        let title: String
+                        if let sortingTitle = row["ZCUSTOMLABELFORSORTING"] as? String, !sortingTitle.isEmpty {
+                            title = sortingTitle
+                        } else {
+                            title = row["ZENCRYPTEDTITLE"] as? String ?? "未命名备忘录"
                         }
+                        
+                        // 从ZPATH获取文件路径
+                        guard let path = row["ZPATH"] as? String else {
+                            continue
+                        }
+                        
+                        // 从ZCUSTOMLABEL获取日期
+                        let date: Date
+                        if let dateString = row["ZCUSTOMLABEL"] as? String, !dateString.isEmpty {
+                            date = parseDate(dateString) ?? Date()
+                        } else {
+                            date = Date()
+                        }
+                        
+                        memos.append(VoiceMemo(
+                            title: title,
+                            originalPath: path,
+                            date: date
+                        ))
                     }
                     
-                    // 如果找到了可能的标题和路径列
-                    if let titleCol = titleColumn, let pathCol = pathColumn {
-                        let rows = try Row.fetchAll(db, sql: "SELECT * FROM \(tableName)")
-                        
-                        var memos: [VoiceMemo] = []
-                        for row in rows {
-                            let title = row[titleCol] as? String ?? "未命名备忘录"
-                            if let path = row[pathCol] as? String {
-                                memos.append(VoiceMemo(
-                                    title: title, 
-                                    originalPath: path, 
-                                    date: Date()
-                                ))
-                            }
-                        }
-                        
-                        if !memos.isEmpty {
-                            return memos
-                        }
+                    if !memos.isEmpty {
+                        return memos
                     }
                 }
             }
             
-            // 如果无法找到适当的表结构，尝试更通用的方法
+            // 如果特定表访问失败，回退到通用逻辑
             // 检查所有表的所有列
             for tableName in tables {
                 let rows = try Row.fetchAll(db, sql: "SELECT * FROM \(tableName) LIMIT 10")
@@ -130,6 +141,12 @@ class VoiceMemoLoader {
             
             throw VoiceMemoLoaderError.invalidData
         }
+    }
+    
+    // 解析ISO 8601日期字符串
+    private static func parseDate(_ dateString: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        return formatter.date(from: dateString)
     }
 }
 

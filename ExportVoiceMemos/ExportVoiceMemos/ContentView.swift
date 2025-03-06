@@ -18,27 +18,29 @@ struct ContentView: View {
     @State private var voiceMemos: [VoiceMemo] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var selectedMemos = Set<UUID>()
+    @State private var isExporting = false
     
     var body: some View {
-        NavigationView {
-            Group {
-                if isLoading {
-                    ProgressView("加载中...")
-                } else if let error = errorMessage {
-                    VStack {
-                        Text("错误：\(error)")
-                            .foregroundColor(.red)
-                        Button("重试") {
-                            Task {
-                                await loadVoiceMemos()
-                            }
+        Group {
+            if isLoading {
+                ProgressView("加载中...")
+            } else if let error = errorMessage {
+                VStack {
+                    Text("错误：\(error)")
+                        .foregroundColor(.red)
+                    Button("重试") {
+                        Task {
+                            await loadVoiceMemos()
                         }
-                        .buttonStyle(.bordered)
                     }
-                } else if voiceMemos.isEmpty {
-                    Text("未找到语音备忘录")
-                } else {
-                    List(voiceMemos) { memo in
+                    .buttonStyle(.bordered)
+                }
+            } else if voiceMemos.isEmpty {
+                Text("未找到语音备忘录")
+            } else {
+                VStack {
+                    List(voiceMemos, selection: $selectedMemos) { memo in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(memo.title)
                                 .font(.headline)
@@ -52,11 +54,35 @@ struct ContentView: View {
                         .padding(.vertical, 4)
                     }
                 }
+                .toolbar {
+                    ToolbarItem(placement: .automatic) {
+                        Button(action: {
+                            isExporting = true
+                            // 这里将来添加导出逻辑
+                            print("准备导出 \(selectedMemos.count) 个文件")
+                        }) {
+                            Label("导出选中项", systemImage: "square.and.arrow.up")
+                        }
+                        .disabled(selectedMemos.isEmpty)
+                    }
+                    
+                    ToolbarItem(placement: .automatic) {
+                        Button(action: {
+                            if selectedMemos.count == voiceMemos.count {
+                                selectedMemos.removeAll()
+                            } else {
+                                selectedMemos = Set(voiceMemos.map { $0.id })
+                            }
+                        }) {
+                            Text(selectedMemos.count == voiceMemos.count ? "取消全选" : "全选")
+                        }
+                    }
+                }
             }
-            .navigationTitle("语音备忘录")
-            .task {
-                await loadVoiceMemos()
-            }
+        }
+        .navigationTitle("语音备忘录")
+        .task {
+            await loadVoiceMemos()
         }
     }
     
